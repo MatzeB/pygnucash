@@ -6,13 +6,6 @@ from datetime import datetime
 
 out = codecs.getwriter('UTF-8')(sys.stdout)
 
-conn = sqlite3.connect('test.db')
-
-c = conn.cursor()
-for row in c.execute('SELECT guid, currency_guid, num, post_date, enter_date, description FROM transactions'):
-	#guid,currency_guid,post_data,enter_date,description = row
-	pass
-
 class Account(object):
 	def __init__(self):
 		self.childs = []
@@ -68,6 +61,10 @@ def get_transaction(guid):
 def get_split(guid):
 	return get(splits, Split, guid)
 
+# Read Data
+conn = sqlite3.connect('test.db')
+c = conn.cursor()
+
 for row in c.execute('SELECT guid, namespace, mnemonic, fullname FROM commodities'):
 	guid,namespace,mnemonic,fullname = row
 	comm = get_commodity(guid)
@@ -113,6 +110,8 @@ for row in c.execute('SELECT guid, tx_guid, account_guid, value_num, value_denom
 	split.quantity_denom = int(quantity_denom)
 	split.quantity = float(quantity_num)/float(quantity_denom)
 
+# Analysis
+
 def full_acc_name(acc, maxdepth=1000):
 	if acc.parent is None or maxdepth == 0:
 		return ""
@@ -137,9 +136,6 @@ def calc_dividends(acc):
 		for ssplit in trans.splits:
 			if ssplit is split:
 				continue
-			#date = trans.post_date.strftime("%d.%m.%Y")
-			#out.write("   %s %-30s   value %.2f quantity %.2f\n" %
-			#		  (date, trans.description, ssplit.value, ssplit.quantity))
 			acctype = ssplit.account.type
 			if acctype == "EXPENSE":
 				fees += abs(ssplit.value)
@@ -210,10 +206,7 @@ def calc_realized_wins(acc):
 		out.write("\t%s %s %7s shares costs %9.2f %s fees %7.2f\n" % (
 		          date, atype, quantity, costs, curr, fees))
 
-		#name = full_acc_name(ssplit.account, 2)
-		#out.write("     acc %s value %.2f quantity %.2f\n" % (name, ssplit.value, ssplit.quantity))
-
-# Select all stock accounts
+# Report
 gdiv_value = 0.0
 gdiv_fees = 0.0
 gdiv_count = 0
@@ -231,18 +224,7 @@ for acc in accounts.values():
 	gdiv_value += div_value
 	gdiv_count += div_count
 	gdiv_fees += div_fees
-	#if div_value == 0.0:
-	#	continue
 	calc_realized_wins(acc)
-#	for split in acc.splits:
-#		trans = split.transaction
-#		out.write("\t%-30s   vnum %s vdenom %s qnum %s qdenom %s\n" %
-#		          (trans.description, split.value_num, split.value_denom,
-#		          split.quantity_num, split.quantity_denom))
 	out.write("  => %5.2f dividends [%5.2f fees]\n" % (acc.div_value, acc.div_fees))
 out.write("-----------\n")
 out.write("%5.2f EUR dividens [%5.2f dividend fees]" % (gdiv_value, gdiv_fees))
-
-class Transaction(object):
-	def __init__(self):
-		pass
