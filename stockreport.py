@@ -29,9 +29,15 @@ def analyze_transactions(acc):
 	last_sell     = None
 
 	splits = sorted(acc.splits, key = lambda x: x.transaction.post_date)
+	processed_transactions = set()
 
 	for split in splits:
 		trans = split.transaction
+		# stock splits can result in multiple splits in the same transaction
+		# we only care about the transaction once
+		if trans in processed_transactions:
+			continue;
+		processed_transactions.add(trans)
 		date = trans.post_date.strftime("%d.%m.%Y")
 		curr = trans.currency
 
@@ -59,11 +65,11 @@ def analyze_transactions(acc):
 			sum_div_value += value
 			sum_div_fees  += fees
 			sum_div       += dividends
-			out.write("\t%s DIV   %7.2f %s fees %7.2f\n" % (date, value, curr, fees))
+			out.write("\t%s DIV  %9.2f %s, fees %7.2f\n" % (date, value, curr, fees))
 			continue
 
 		# it is a buy or sell if we are here
-		is_buy = split.quantity > 0
+		is_buy = shares > 0
 
 		if first_in is None:
 			assert is_buy
@@ -98,12 +104,11 @@ def analyze_transactions(acc):
 						  (date, trans.description, ssplit.value, ssplit.quantity))
 				assert False
 
-		quantity = abs(split.quantity)
-		out.write("\t%s %s %7s shares costs %9.2f %s fees %7.2f\n" % (
-		          date, atype, quantity, abs(costs), curr, fees))
+		out.write("\t%s %s %9.2f %s, fees %7.2f, %+7.1f shares\n" % (
+		          date, atype, costs, curr, fees, shares))
 		sum_costs  += costs
 		sum_fees   += fees
-		sum_shares += split.quantity
+		sum_shares += shares
 		if sum_shares == 0:
 			last_sell = trans.post_date
 		else:
@@ -133,21 +138,25 @@ for acc in data.accounts.values():
 		#out.write("IGNORE %s: %-40s\n" % (acc.type, full_acc_name(acc, 3)))
 		continue
 	name = full_acc_name(acc, 3)
-	out.write("%-40s\n" % (name,))
+	out.write("== %s ==\n" % (name,))
 
 	costs, invest, fees, shares, div_value, div_fees, first_in, last_sell = analyze_transactions(acc)
+
+	out.write("\t-------------\n")
 	gfees      += fees
 	gdiv_value += div_value
 	gdiv_fees  += div_fees
-	out.write("  => %5.0f shares, %9.2f costs %5.2f dividends %8.2f fees\n" % (shares, costs, div_value, fees + div_fees))
+	realized_gain = 0.0
 	if shares == 0:
 		value, value_date = (0.0, last_sell)
-		grealized_gain += -costs
+		realized_gain = -costs
 	else:
 		value, value_date = get_latest_share_value(acc, shares)
 		date = value_date.strftime("%d.%m.%Y")
-		out.write("  => share value %11.2f [on %s]\n" % (value, date))
 		gunrealized_gain += -costs + value
+	grealized_gain += realized_gain
+	out.write("\t%7.2f value in %5.0f shares [on %s]\n" % (value, shares, date))
+	out.write("\t%7.2f realized gain %5.2f dividends %8.2f fees\n" % (realized_gain, div_value, fees + div_fees))
 
 	# Try to compute win in percentage
 	from_date = first_in.strftime("%m/%Y")
@@ -158,7 +167,8 @@ for acc in data.accounts.values():
 	win_ratio = win / invest
 	win_per_day = 1.0 if days == 0 else math.pow(1.0+win_ratio, 1.0/float(days))
 	win_per_year = math.pow(win_per_day, 365.)
-	out.write("  => %2.2f%% gain p.a. (from %s to %s, invested %s)\n" % ((win_per_year-1.0)*100., from_date, to_date, invest))
+	out.write("\t%7.2f%% gain p.a. (from %s to %s)\n" % ((win_per_year-1.0)*100., from_date, to_date))
+	out.write("\n")
 out.write("-----------\n")
 out.write("%9.2f fees\n" % (gdiv_fees+gfees,)) 
 out.write("%9.2f EUR gain realized\n" % (grealized_gain,))
