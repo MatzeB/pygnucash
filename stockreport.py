@@ -85,7 +85,7 @@ def analyze_transactions(acc):
 			acctype = ssplit.account.type
 			if acctype == "EXPENSE":
 				fees += abs(ssplit.value)
-			elif acctype == "BANK" or acctype == "ASSET":
+			elif acctype == "BANK" or acctype == "ASSET" or acctype == "EQUITY":
 				costs += -ssplit.value
 			elif acctype == "STOCK" or acctype == "MUTUAL":
 				# moved to different depot? or a stock split?
