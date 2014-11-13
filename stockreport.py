@@ -104,8 +104,9 @@ def analyze_transactions(acc):
 						  (date, trans.description, ssplit.value, ssplit.quantity))
 				assert False
 
-		out.write("\t%s %s %9.2f %s, fees %7.2f, %+7.1f shares\n" % (
-		          date, atype, costs, curr, fees, shares))
+		share_price = abs((costs-fees)/shares)
+		out.write("\t%s %s %9.2f %s, fees %7.2f, %+7.1f shares (@%3.2f)\n" % (
+		          date, atype, costs, curr, fees, shares, share_price))
 		sum_costs  += costs
 		sum_fees   += fees
 		sum_shares += shares
@@ -125,7 +126,7 @@ def get_latest_share_value(acc, shares):
 		return float('NaN')
 	last_price = prices[-1]
 	value = shares * last_price.value
-	return (value, last_price.date)
+	return (value, last_price.value, last_price.date)
 
 # Report
 gdiv_value       = 0.0
@@ -148,15 +149,15 @@ for acc in data.accounts.values():
 	gdiv_fees  += div_fees
 	realized_gain = 0.0
 	if shares == 0:
-		value, value_date = (0.0, last_sell)
+		value, share_value, value_date = (0.0, 0.0, last_sell)
 		realized_gain = -costs
 	else:
-		value, value_date = get_latest_share_value(acc, shares)
-		date = value_date.strftime("%d.%m.%Y")
+		value, share_value, value_date = get_latest_share_value(acc, shares)
 		gunrealized_gain += -costs + value
+		date = value_date.strftime("%d.%m.%Y")
+		out.write("\t%7.2f value in %5.0f shares (@%.2f) [on %s]\n" % (value, shares, share_value, date))
+	out.write("\t%7.2f realized gain + %.2f dividends (%.2f fees)\n" % (realized_gain, div_value, fees + div_fees))
 	grealized_gain += realized_gain
-	out.write("\t%7.2f value in %5.0f shares [on %s]\n" % (value, shares, date))
-	out.write("\t%7.2f realized gain %5.2f dividends %8.2f fees\n" % (realized_gain, div_value, fees + div_fees))
 
 	# Try to compute win in percentage
 	from_date = first_in.strftime("%m/%Y")
