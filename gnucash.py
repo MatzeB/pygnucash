@@ -149,5 +149,5 @@ def read_file(filename):
 # Some early attempts to change data
 
 def change_split_account(connection, splitguid, oldaccountguid, newaccountguid):
-	connection.execute('UPDATE splits SET account_guid=? WHERE guid=?', (newaccountguid, splitguid))
+	connection.execute('UPDATE splits SET account_guid=? WHERE guid=? AND account_guid=?', (newaccountguid, splitguid, oldaccountguid))
 	connection.commit()
