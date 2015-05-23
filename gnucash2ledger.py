@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+#
+# Converts gnucash3 sqlite files to ledger format.
 import sys
 import codecs
 import gnucash

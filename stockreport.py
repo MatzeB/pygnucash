@@ -1,4 +1,9 @@
 #!/usr/bin/env python
+#
+# Analysis tool for stock performance. Similar to the built-in advanced portfolio
+# view, but does a better job at figuring out fees, taxes and dividens. Also
+# computes lifetime wins/losses and yearly increas percentages to ease comparisons
+# between stocks that you hold for different durations of time.
 import codecs
 import gnucash
 import math
