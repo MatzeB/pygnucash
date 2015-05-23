@@ -1,5 +1,6 @@
 import sqlite3
 import sys
+import os
 from datetime import datetime
 
 class Account(object):
@@ -69,12 +70,15 @@ def get_split(data, guid):
 def get_price(data, guid):
 	return get(data.prices, Price, guid)
 
-def read_file(filename):
-	data = GnuCashData()
-	# Read Data
-	conn = sqlite3.connect(filename)
-	c = conn.cursor()
+def open_file(filename):
+	if not os.path.isfile(filename):
+		raise Exception("File '%s' does not exist" % filename)
+	return sqlite3.connect(filename)
 
+def read_data(connection):
+	c = connection.cursor()
+
+	data = GnuCashData()
 	for row in c.execute('SELECT guid, namespace, mnemonic, fullname FROM commodities'):
 		guid,namespace,mnemonic,fullname = row
 		comm = get_commodity(data, guid)
@@ -137,3 +141,13 @@ def read_file(filename):
 		prices.sort()
 
 	return data
+
+def read_file(filename):
+	conn = open_file(filename)
+	return read_data(conn)
+
+# Some early attempts to change data
+
+def change_split_account(connection, splitguid, oldaccountguid, newaccountguid):
+	connection.execute('UPDATE splits SET account_guid=? WHERE guid=?', (newaccountguid, splitguid))
+	connection.commit()

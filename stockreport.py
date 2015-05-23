@@ -8,19 +8,13 @@ import codecs
 import gnucash
 import math
 import sys
+from gnucashutil import full_acc_name
 
 out = codecs.getwriter('UTF-8')(sys.stdout)
 if len(sys.argv) == 1:
 	sys.stderr.write("Invocation: %s gnucash_filename\n" % sys.argv[0])
 	sys.exit(1)
 data = gnucash.read_file(sys.argv[1])
-
-def full_acc_name(acc, maxdepth=1000):
-	if acc.parent is None or maxdepth == 0:
-		return ""
-	result = full_acc_name(acc.parent, maxdepth-1)
-	result += ":"+acc.name
-	return result
 
 def analyze_transactions(acc):
 	sum_shares    = 0
