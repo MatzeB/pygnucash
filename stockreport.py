@@ -103,6 +103,10 @@ def analyze_transactions(acc):
 					assert costs == 0
 					atype = "MIN " if is_buy else "MOUT"
 					costs += -ssplit.value
+			elif acctype == "INCOME":
+				# another form of dividends, don't assign a value we'll get that
+				# when selling the stock...
+				atype = "DIV "
 			else:
 				out.write("UNKNOWN TYPE: %s (acc %s)\n" % (acctype, acc))
 				out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
