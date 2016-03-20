@@ -63,9 +63,14 @@ transactions = data.transactions.values()
 transactions.sort(key=lambda x: x.post_date)
 for trans in transactions:
 	date = trans.post_date.strftime("%Y/%m/%d")
-	out.write("%s * %s\n" % (date, trans.description))
+	if trans.num:
+		out.write("%s * (%s) %s\n" % (date, trans.num, trans.description))
+	else:
+		out.write("%s * %s\n" % (date, trans.description))
+
 	for split in trans.splits:
-		out.write("\t%-40s " % full_acc_name(split.account))
+		# Ensure 2 spaces after account name
+		out.write("\t%-40s  " % full_acc_name(split.account))
 		if split.account.commodity != trans.currency:
 			out.write("%10.2f %s @@ %.2f %s" % (split.quantity, format_commodity(split.account.commodity), abs(split.value), format_commodity(trans.currency)))
 		else:
