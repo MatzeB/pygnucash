@@ -72,5 +72,7 @@ for trans in transactions:
 			out.write("%10.2f %s @@ %.2f %s" % (split.quantity, format_commodity(split.account.commodity), abs(split.value), format_commodity(trans.currency)))
 		else:
 			out.write("%10.2f %s" % (split.value, format_commodity(trans.currency)))
+		if split.memo:
+			out.write("  ; %s" % split.memo)
 		out.write("\n")
 	out.write("\n")
