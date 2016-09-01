@@ -10,7 +10,7 @@ class Account(object):
 		self.name = ""
 		self.splits = []
 		self.type = None
-	
+
 	def __str__(self):
 		return self.name
 
@@ -107,8 +107,8 @@ def read_data(connection):
 		trans.post_date = parse_time(post_date)
 		trans.description = description
 
-	for row in c.execute('SELECT guid, tx_guid, account_guid, value_num, value_denom, quantity_num, quantity_denom FROM splits'):
-		guid,tx_guid,account_guid,value_num,value_denom,quantity_num,quantity_denom = row
+	for row in c.execute('SELECT guid, tx_guid, account_guid, memo, value_num, value_denom, quantity_num, quantity_denom FROM splits'):
+		guid,tx_guid,account_guid,memo,value_num,value_denom,quantity_num,quantity_denom = row
 		split = get_split(data, guid)
 		split.transaction = get_transaction(data, tx_guid)
 		split.transaction.splits.append(split)
@@ -120,6 +120,7 @@ def read_data(connection):
 		split.quantity_num = int(quantity_num)
 		split.quantity_denom = int(quantity_denom)
 		split.quantity = float(quantity_num)/float(quantity_denom)
+		split.memo = memo
 
 	for row in c.execute('SELECT guid, commodity_guid, currency_guid, date, value_num, value_denom FROM prices'):
 		guid,commodity_guid,currency_guid,date,value_num,value_denom = row
