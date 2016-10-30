@@ -10,6 +10,11 @@ version 2.6 and higher. It features two proof of concepts scripts:
 * gnucash2ledger.py convert a gnucash file to a ledger-cli file
 * stockreport.py Summarizes your wins/losses with stocks/mutual funds (contrary to the gnucash builtin reports this one recognizes taxes/fees on dividend transactions)
 
+2. Requirements
+---------------
+
+* python 2.7 (with sqlite3 module enabled)
+
 2. Author/Contact
 -----------------
 
