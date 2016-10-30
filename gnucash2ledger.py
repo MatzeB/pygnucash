@@ -27,13 +27,16 @@ def full_acc_name(acc):
 	result += acc.name
 	return result
 
+def no_nl(string):
+	return string.replace("\n", " ")
+
 commodities = data.commodities.values()
 for commodity in commodities:
 	if commodity.mnemonic == "":
 		continue
 	out.write("commodity %s\n" % format_commodity(commodity))
 	if commodity.fullname != "":
-		out.write("\tnote %s\n" % commodity.fullname)
+		out.write("\tnote %s\n" % no_nl(commodity.fullname))
 out.write("\n")
 
 accounts = data.accounts.values()
@@ -45,7 +48,7 @@ for acc in accounts:
 		continue
 	out.write("account %s\n" % (full_acc_name(acc), ))
 	if acc.description != "":
-		out.write("\tnote %s\n" % (acc.description,))
+		out.write("\tnote %s\n" % (no_nl(acc.description),))
 	formated_commodity = format_commodity(acc.commodity)
 	formated_commodity = formated_commodity.replace("\"", "\\\"")
 	out.write("\tcheck commodity == \"%s\"\n" % formated_commodity)
@@ -63,8 +66,9 @@ transactions = data.transactions.values()
 transactions.sort(key=lambda x: x.post_date)
 for trans in transactions:
 	date = trans.post_date.strftime("%Y/%m/%d")
-	code = "(%s) " % trans.num if trans.num else ""
-	out.write("%s * %s%s\n" % (date, code, trans.description))
+	code = "(%s) " % no_nl(trans.num.replace(")", "")) if trans.num else ""
+	description = no_nl(trans.description)
+	out.write("%s * %s%s\n" % (date, code, description))
 	for split in trans.splits:
 		# Ensure 2 spaces after account name
 		out.write("\t%-40s  " % full_acc_name(split.account))
@@ -73,6 +77,6 @@ for trans in transactions:
 		else:
 			out.write("%10.2f %s" % (split.value, format_commodity(trans.currency)))
 		if split.memo:
-			out.write("  ; %s" % split.memo)
+			out.write("  ; %s" % no_nl(split.memo))
 		out.write("\n")
 	out.write("\n")
