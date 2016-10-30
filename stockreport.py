@@ -168,7 +168,7 @@ for acc in data.accounts.values():
 	delta = value_date - first_in
 	days = delta.days
 	win = -costs + value + div_value
-	win_ratio = win / invest
+	win_ratio = win / invest if invest > 0 else 0
 	win_per_day = 1.0 if days == 0 else math.pow(1.0+win_ratio, 1.0/float(days))
 	win_per_year = math.pow(win_per_day, 365.)
 	out.write("\t%7.2f%% gain p.a. (from %s to %s)\n" % ((win_per_year-1.0)*100., from_date, to_date))
