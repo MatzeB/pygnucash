@@ -1,6 +1,7 @@
 import sqlite3
 import sys
 import os
+import math
 from datetime import datetime
 
 
@@ -21,6 +22,7 @@ class Commodity(object):
         self.fullname = ""
         self.mnemonic = ""
         self.namespace = ""
+        self.precision = 2
         self.prices = []
 
     def __str__(self):
@@ -93,12 +95,13 @@ def read_data(connection):
     c = connection.cursor()
 
     data = GnuCashData()
-    for row in c.execute('SELECT guid, namespace, mnemonic, fullname FROM commodities'):
-        guid, namespace, mnemonic, fullname = row
+    for row in c.execute('SELECT guid, namespace, mnemonic, fullname, fraction FROM commodities'):
+        guid, namespace, mnemonic, fullname, fraction = row
         comm = get_commodity(data, guid)
         comm.namespace = namespace
         comm.mnemonic = mnemonic
         comm.fullname = fullname
+        comm.precision = int(math.log10(fraction))
 
     for row in c.execute('SELECT guid, name, account_type, commodity_guid, commodity_scu, non_std_scu, parent_guid, code, description FROM accounts'):
         guid, name, account_type, commodity_guid, commodity_scu, non_std_scu, \
