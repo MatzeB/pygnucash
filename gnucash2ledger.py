@@ -81,13 +81,15 @@ for trans in transactions:
         out.write("\t%-40s  " % full_acc_name(split.account))
         trans_currency = format_commodity(trans.currency)
         if split.account.commodity != trans.currency:
+            commodity_precision = split.account.commodity.precision
             split_acc_commodity = format_commodity(split.account.commodity)
             quantity = split.quantity
             value = abs(split.value)
-            out.write("%10.2f %s @@ %.2f %s" %
-                      (quantity, split_acc_commodity, value, trans_currency))
+            out.write("%10.*f %s @@ %.2f %s" %
+                      (commodity_precision, quantity, split_acc_commodity, value, trans_currency))
         else:
-            out.write("%10.2f %s" % (split.value, trans_currency))
+            commodity_precision = trans.currency.precision
+            out.write("%10.*f %s" % (commodity_precision, split.value, trans_currency))
         if split.memo:
             out.write("  ; %s" % no_nl(split.memo))
         out.write("\n")
