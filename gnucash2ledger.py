@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Converts gnucash3 sqlite files to ledger format.
 import sys

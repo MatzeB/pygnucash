@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 #
 # Analysis tool for stock performance. Similar to the built-in advanced
 # portfolio view, but does a better job at figuring out fees, taxes and
