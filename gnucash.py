@@ -57,12 +57,12 @@ class GnuCashData(object):
 
 
 def get(objdict, constructor, guid):
-    acc = objdict.get(guid)
-    if acc is None:
-        acc = constructor()
-        acc.guid = guid
-        objdict[guid] = acc
-    return acc
+    obj = objdict.get(guid)
+    if obj is None:
+        obj = constructor()
+        obj.guid = guid
+        objdict[guid] = obj
+    return obj
 
 
 def get_account(data, guid):
