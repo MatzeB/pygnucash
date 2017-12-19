@@ -13,7 +13,7 @@ version 2.6 and higher. It features two proof of concepts scripts:
 2. Requirements
 ---------------
 
-* python 2.7 (with sqlite3 module enabled)
+* python 3.x (tested on 3.6, may or may not work on other versions on 2.x)
 
 2. Author/Contact
 -----------------

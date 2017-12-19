@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Converts gnucash3 sqlite files to ledger format.
 import sys
@@ -59,7 +59,7 @@ for acc in accounts:
 
 # Prices
 prices = data.prices.values()
-prices.sort(key=lambda x: x.date)
+prices = sorted(prices, key=lambda price: price.date)
 for price in prices:
     date = price.date.strftime("%Y/%m/%d %H:%M:%S")
     price_commodity = format_commodity(price.commodity)
@@ -69,7 +69,8 @@ for price in prices:
 out.write("\n")
 
 transactions = data.transactions.values()
-transactions.sort(key=lambda x: x.post_date)
+transactions = sorted(transactions,
+                      key=lambda transaction: transaction.post_date)
 for trans in transactions:
     date = trans.post_date.strftime("%Y/%m/%d")
     code = "(%s) " % no_nl(trans.num.replace(")", "")) if trans.num else ""

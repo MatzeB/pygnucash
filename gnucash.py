@@ -43,9 +43,6 @@ class Price(object):
     def __init__(self):
         pass
 
-    def __cmp__(self, other):
-        return cmp(self.date, other.date)
-
 
 class GnuCashData(object):
     def __init__(self):
@@ -165,7 +162,7 @@ def read_data(connection):
     # Sort price lists for each commodity
     for commodity in data.commodities.values():
         prices = commodity.prices
-        prices.sort()
+        prices.sort(key=lambda price: price.date)
 
     return data
 
