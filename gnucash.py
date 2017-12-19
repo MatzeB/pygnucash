@@ -1,8 +1,9 @@
+from datetime import datetime
+import math
+import os
 import sqlite3
 import sys
-import os
-import math
-from datetime import datetime
+import uuid
 
 
 class Account(object):
@@ -23,6 +24,8 @@ class Commodity(object):
         self.mnemonic = ""
         self.namespace = ""
         self.precision = 2
+        self.quote_flag = False
+        self.quote_source = ""
         self.prices = []
 
     def __str__(self):
@@ -93,12 +96,16 @@ def read_data(connection):
 
     data = GnuCashData()
     for row in c.execute('SELECT guid, namespace, mnemonic, fullname, '
-                         'fraction FROM commodities'):
-        guid, namespace, mnemonic, fullname, fraction = row
+                         'fraction, quote_flag, quote_source '
+                         'FROM commodities'):
+        guid, namespace, mnemonic, fullname, fraction, quote_flag, \
+            quote_source = row
         comm = get_commodity(data, guid)
         comm.namespace = namespace
         comm.mnemonic = mnemonic
         comm.fullname = fullname
+        comm.quote_flag = (quote_flag != 0)
+        comm.quote_source = quote_source
         comm.precision = int(math.log10(fraction))
 
     for row in c.execute('SELECT guid, name, account_type, commodity_guid, '
@@ -181,3 +188,20 @@ def change_split_account(connection, split_guid, oldaccount_guid,
                        'AND account_guid=?',
                        (newaccount_guid, split_guid, oldaccount_guid))
     connection.commit()
+
+
+def _print_time(time):
+    return datetime.strftime(time, "%Y%m%d%H%M%S")
+
+
+def add_price(connection, commodity_guid, currency_guid, date, source, type,
+              value_num, value_denom):
+    guid = uuid.uuid4().hex
+    date_f = _print_time(date)
+    connection.execute('INSERT INTO prices(guid, commodity_guid, '
+                       'currency_guid, date, source, type, value_num, '
+                       'value_denom) VALUES (?,?,?,?,?,?,?,?)',
+                       (guid, commodity_guid, currency_guid, date_f, source,
+                        type, value_num, value_denom))
+    connection.commit()
+    return guid
