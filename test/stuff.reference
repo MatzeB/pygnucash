@@ -1,0 +1,29 @@
+commodity USD
+	note US Dollar
+
+account Bank
+	check commodity == "USD"
+
+account Income
+	check commodity == "USD"
+
+account Expenses
+	check commodity == "USD"
+
+account Expenses:Taxes
+	check commodity == "USD"
+
+
+2011/01/01 * (42) Salary 💰
+	Bank                                          111.00 USD
+	Income                                       -111.00 USD
+
+2012/02/02 * (CoMmEnT!) Rent 💸
+	Bank                                          -66.00 USD
+	Expenses                                       66.00 USD
+
+2222/01/01 * Future Lottery Win
+	Bank                                      1224567.89 USD  ; Woohoo
+	Income                                    -1234567.89 USD  ; Thanks
+	Expenses:Taxes                              10000.00 USD  ; Oh No!
+
