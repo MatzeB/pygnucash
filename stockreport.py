@@ -1,11 +1,10 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 #
 # Analysis tool for stock performance. Similar to the built-in advanced
 # portfolio view, but does a better job at figuring out fees, taxes and
 # dividens. Also computes lifetime wins/losses and yearly increase percentages
 # to ease comparisons between stocks that you hold for different durations of
 # time.
-import codecs
 import gnucash
 import math
 import sys
@@ -134,7 +133,7 @@ def get_latest_share_value(acc, shares):
     return (value, last_price.value, last_price.date)
 
 
-out = codecs.getwriter('UTF-8')(sys.stdout)
+out = sys.stdout
 if len(sys.argv) == 1:
     sys.stderr.write("Invocation: %s gnucash_filename\n" % sys.argv[0])
     sys.exit(1)

@@ -2,7 +2,6 @@
 #
 # Converts gnucash3 sqlite files to ledger format.
 import sys
-import codecs
 import gnucash
 
 
@@ -28,7 +27,7 @@ def no_nl(string):
     return string.replace("\n", " ")
 
 
-out = codecs.getwriter('UTF-8')(sys.stdout)
+out = sys.stdout
 if len(sys.argv) == 1:
     sys.stderr.write("Invocation: %s gnucash_filename\n" % sys.argv[0])
     sys.exit(1)
