@@ -14,7 +14,8 @@ if len(sys.argv) < 3:
     stderr.write("Invocation: %s gnucash_filename COMMAND\n" % sys.argv[0])
     stderr.write("  Commands:\n")
     stderr.write("     accountlist         List account names+numbers\n")
-    stderr.write("     switchacc old new   Change all transactions from old to new account guid")
+    stderr.write("     switchacc old new   "
+                 "Change all transactions from old to new account guid")
     exit(1)
 
 conn = gnucash.open_file(sys.argv[1])

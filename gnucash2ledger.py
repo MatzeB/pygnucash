@@ -11,7 +11,7 @@ def format_commodity(commodity):
     try:
         if mnemonic.encode('ascii').isalpha():
             return mnemonic
-    except:
+    except Exception as e:
         pass
     return "\"%s\"" % mnemonic   # TODO: escape " char in mnemonic
 
@@ -86,10 +86,12 @@ for trans in transactions:
             quantity = split.quantity
             value = abs(split.value)
             out.write("%10.*f %s @@ %.2f %s" %
-                      (commodity_precision, quantity, split_acc_commodity, value, trans_currency))
+                      (commodity_precision, quantity, split_acc_commodity,
+                       value, trans_currency))
         else:
             commodity_precision = trans.currency.precision
-            out.write("%10.*f %s" % (commodity_precision, split.value, trans_currency))
+            out.write("%10.*f %s" %
+                      (commodity_precision, split.value, trans_currency))
         if split.memo:
             out.write("  ; %s" % no_nl(split.memo))
         out.write("\n")

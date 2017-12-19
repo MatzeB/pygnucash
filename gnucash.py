@@ -95,7 +95,8 @@ def read_data(connection):
     c = connection.cursor()
 
     data = GnuCashData()
-    for row in c.execute('SELECT guid, namespace, mnemonic, fullname, fraction FROM commodities'):
+    for row in c.execute('SELECT guid, namespace, mnemonic, fullname, '
+                         'fraction FROM commodities'):
         guid, namespace, mnemonic, fullname, fraction = row
         comm = get_commodity(data, guid)
         comm.namespace = namespace
@@ -103,7 +104,9 @@ def read_data(connection):
         comm.fullname = fullname
         comm.precision = int(math.log10(fraction))
 
-    for row in c.execute('SELECT guid, name, account_type, commodity_guid, commodity_scu, non_std_scu, parent_guid, code, description FROM accounts'):
+    for row in c.execute('SELECT guid, name, account_type, commodity_guid, '
+                         'commodity_scu, non_std_scu, parent_guid, code, '
+                         'description FROM accounts'):
         guid, name, account_type, commodity_guid, commodity_scu, non_std_scu, \
             parent_guid, code, description = row
         acc = get_account(data, guid)
@@ -117,7 +120,8 @@ def read_data(connection):
     def parse_time(time):
         return datetime.strptime(time, "%Y%m%d%H%M%S")
 
-    for row in c.execute('SELECT guid, currency_guid, num, post_date, description FROM transactions'):
+    for row in c.execute('SELECT guid, currency_guid, num, post_date, '
+                         'description FROM transactions'):
         guid, currency_guid, num, post_date, description = row
         trans = get_transaction(data, guid)
         trans.currency = get_commodity(data, currency_guid)
@@ -125,7 +129,9 @@ def read_data(connection):
         trans.post_date = parse_time(post_date)
         trans.description = description
 
-    for row in c.execute('SELECT guid, tx_guid, account_guid, memo, value_num, value_denom, quantity_num, quantity_denom FROM splits'):
+    for row in c.execute('SELECT guid, tx_guid, account_guid, memo, '
+                         'value_num, value_denom, quantity_num, '
+                         'quantity_denom FROM splits'):
         guid, tx_guid, account_guid, memo, value_num, value_denom, \
             quantity_num, quantity_denom = row
         split = get_split(data, guid)
@@ -141,7 +147,8 @@ def read_data(connection):
         split.quantity = float(quantity_num)/float(quantity_denom)
         split.memo = memo
 
-    for row in c.execute('SELECT guid, commodity_guid, currency_guid, date, value_num, value_denom FROM prices'):
+    for row in c.execute('SELECT guid, commodity_guid, currency_guid, date, '
+                         'value_num, value_denom FROM prices'):
         guid, commodity_guid, currency_guid, date, value_num, value_denom = row
         price = get_price(data, guid)
         price.commodity = get_commodity(data, commodity_guid)
@@ -171,6 +178,9 @@ def read_file(filename):
 # Functions to change data
 
 
-def change_split_account(connection, splitguid, oldaccountguid, newaccountguid):
-    connection.execute('UPDATE splits SET account_guid=? WHERE guid=? AND account_guid=?', (newaccountguid, splitguid, oldaccountguid))
+def change_split_account(connection, split_guid, oldaccount_guid,
+                         newaccount_guid):
+    connection.execute('UPDATE splits SET account_guid=? WHERE guid=? '
+                       'AND account_guid=?',
+                       (newaccount_guid, split_guid, oldaccount_guid))
     connection.commit()
