@@ -8,19 +8,110 @@
 import gnucash
 import math
 import sys
+import argparse
 from gnucashutil import full_acc_name
 
 
-def analyze_transactions(acc):
-    sum_shares = 0
-    sum_invest = 0.0
-    sum_costs = 0.0
-    sum_fees = 0.0
-    sum_div_value = 0.0
-    sum_div_fees = 0.0
-    sum_div = 0.0
-    first_in = None
-    last_sell = None
+class Details(object):
+    _keys = ('activa_changes', 'income', 'expenses', 'dividends',
+             'shares', 'shares_value', 'shares_moved',
+             'shares_moved_value', 'shares_other', 'shares_other_value',
+             'realized_gain')
+
+    def __init__(self):
+        for key in self._keys:
+            setattr(self, key, 0)
+
+    def verify(self):
+        assert abs(self.income + self.dividends + self.realized_gain
+                   - self.activa_changes - self.expenses - self.shares_value
+                   - self.shares_moved_value - self.shares_other_value) < .001
+
+    def __add__(self, other):
+        res = Details()
+        for key in self._keys:
+            setattr(res, key, getattr(self, key) + getattr(other, key))
+        res.verify()
+        return res
+
+
+def analyze_transaction(acc, transaction):
+    # Analyze the transaction splits.
+    d = Details()
+    other_commodity = None
+    for ssplit in transaction.splits:
+        if ssplit.account == acc:
+            d.shares += ssplit.quantity
+            d.shares_value += ssplit.value
+            continue
+
+        acctype = ssplit.account.type
+        if acctype == "EXPENSE":
+            d.expenses += ssplit.value
+        elif acctype in ("BANK", "ASSET", "EQUITY"):
+            d.activa_changes += ssplit.value
+        elif acctype == "INCOME":
+            d.income += -ssplit.value
+        elif acctype in ("STOCK", "MUTUAL"):
+            other_account = ssplit.account
+            if other_account.commodity == acc.commodity:
+                d.shares_moved += ssplit.quantity
+                d.shares_moved_value += ssplit.value
+            else:
+                d.shares_other += ssplit.quantity
+                d.shares_other_value += ssplit.value
+                if other_commodity is None:
+                    other_commodity = other_account.commodity
+        else:
+            out.write("Unexpected account type: %s (acc %s)\n" %
+                      (acctype, acc))
+            out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
+                      (date, trans.description, ssplit.value,
+                       ssplit.quantity))
+            assert False
+    d.verify()
+    return d, other_commodity
+
+
+def categorize_transaction(analysis_details):
+    d = analysis_details
+    if d.shares == 0 and d.shares_moved == 0 and d.shares_other == 0:
+        # No change in share numbers at all, must be dividends or fees.
+        if d.income > d.expenses:
+            assert d.income > 0
+            d.dividends += d.income
+            d.income = 0
+            return "DIV "  # dividends
+        elif d.expenses > d.income:
+            assert d.expenses > 0
+            return "FEE "  # account fee or borrowing fee
+        else:
+            tx_type = None
+    elif d.shares_moved == 0 and d.shares_other == 0:
+        if d.shares > 0 and (d.activa_changes < 0 or d.income > 0):
+            return "BUY "
+        elif d.shares < 0 and d.activa_changes > 0:
+            return "SELL"
+        elif d.shares > 0 and d.shares_other_value != 0:
+            return "SPIN"  # spinoff (incoming)
+        elif d.shares_value == 0:
+            return ("SPLT" if d.shares > 0 else "MERG")
+    elif d.shares == 0 and d.shares_other > 0:
+        return "SPIN"  # spinoff
+    elif d.shares_moved != 0 and d.shares_moved == -d.shares:
+        return "MOVE"  # securities moved to another account
+    elif ((d.shares < 0 and d.shares_other > 0) or
+          (d.shares > 0 and d.shares_other < 0)):
+        return "CONV"  # "convert" (secutiry is renamed etc.)
+    else:
+        pass
+    return None
+
+
+def analyze_account(acc):
+    sum = Details()
+    realized_days = 0
+    period_begin = None
 
     splits = sorted(acc.splits, key=lambda x: x.transaction.post_date)
     processed_transactions = set()
@@ -35,92 +126,72 @@ def analyze_transactions(acc):
         date = trans.post_date.strftime("%d.%m.%Y")
         curr = trans.currency
 
-        shares = split.quantity
-        # quantity == 0 it is a dividend marker
-        if shares == 0:
-            value = 0.0
-            fees = 0.0
-            dividends = 0.0
-            for ssplit in trans.splits:
-                if ssplit is split:
-                    continue
-                acctype = ssplit.account.type
-                if acctype == "EXPENSE":
-                    fees += abs(ssplit.value)
-                elif acctype == "BANK":
-                    value += abs(ssplit.value)
-                elif acctype == "INCOME":
-                    dividends += abs(ssplit.value)
-                else:
-                    out.write("UNKNOWN TYPE: %s (acc %s)\n" % (acctype, acc))
-                    out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
-                              (date, trans.description, ssplit.value,
-                               ssplit.quantity))
-                    assert False
-            sum_div_value += value
-            sum_div_fees += fees
-            sum_div += dividends
-            out.write("\t%s DIV  %9.2f %s, fees %7.2f\n" %
-                      (date, value, curr, fees))
+        # Analyze the transaction splits.
+        d, other_commodity = analyze_transaction(acc, trans)
+        tx_type = categorize_transaction(d)
+        if tx_type is None:
+            out.write("Error: Could not categorize transaction\n")
+            out.write("Activa Changes %s Income %s Expenses %s "
+                      "Shares %s (val %s) Shares Moved %s (val %s) "
+                      "Shares Other %s (val %s)\n" %
+                      (d.activa_changes, d.income, d.expenses, d.shares,
+                       d.shares_value, d.shares_moved, d.shares_moved_value,
+                       d.shares_other, d.shares_other_value))
             continue
 
-        # it is a buy or sell if we are here
-        is_buy = shares > 0
+        # Start a period when we moved from 0 to non-0 shares.
+        sum.verify()
+        d.verify()
+        sum += d
+        if d.shares != 0 and abs(sum.shares - d.shares) < .001:
+            assert period_begin is None
+            period_begin = trans.post_date
+        if abs(sum.shares) < .001:
+            # End a period when moving from non-0 to 0 shares.
+            if d.shares != 0:
+                period_end = trans.post_date
+                period_days = (period_end - period_begin).days
+                realized_days += period_days
+                period_begin = None
+            sum.realized_gain += -sum.shares_value
+            sum.shares_value = 0
 
-        if first_in is None:
-            assert is_buy
-            first_in = trans.post_date
-
-        # Classify remaining splits into taxes+fees and real costs
-        fees = 0.0
-        costs = 0.0
-        atype = "BUY " if is_buy else "SELL"
-        for ssplit in trans.splits:
-            if ssplit is split or ssplit.value == 0:
-                continue
-            acctype = ssplit.account.type
-            if acctype == "EXPENSE":
-                fees += abs(ssplit.value)
-            elif (acctype == "BANK" or acctype == "ASSET" or
-                  acctype == "EQUITY"):
-                costs += -ssplit.value
-            elif acctype == "STOCK" or acctype == "MUTUAL":
-                # moved to different depot? or a stock split?
-                if ssplit.account == acc:
-                    # share split
-                    atype = "SPLT"
-                    shares += ssplit.quantity
-                else:
-                    # moved to/from different depot, handle like a SELL
-                    assert costs == 0
-                    atype = "MIN " if is_buy else "MOUT"
-                    costs += -ssplit.value
-            elif acctype == "INCOME":
-                # another form of dividends, don't assign a value we'll get
-                # that when selling the stock...
-                atype = "DIV "
+        # Print transaction.
+        if verbose >= 2:
+            out.write("\t%s %s " % (date, tx_type))
+            if tx_type == "DIV ":
+                out.write("%9.2f %s, fees %7.2f\n" %
+                          (d.dividends, curr, d.expenses))
+            elif tx_type == "FEE ":
+                out.write("%0.2f %s\n" %
+                          (d.activa_changes, curr))
             else:
-                out.write("UNKNOWN TYPE: %s (acc %s)\n" % (acctype, acc))
-                out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
-                          (date, trans.description, ssplit.value,
-                           ssplit.quantity))
-                assert False
+                out.write("%9.2f %s, fees %7.2f, %+5.1f shares" %
+                          (-d.shares_value, curr, d.expenses, d.shares))
+                if d.shares != 0:
+                    share_price = d.shares_value / d.shares
+                    assert share_price >= 0
+                    out.write(" (@%3.2f)" % share_price)
+                out.write("\n")
+            if tx_type in ("SPIN", "CONV") and other_commodity is not None:
+                direction = "<-" if d.shares_other == 0 else "->"
+                spin_shares = (d.shares if d.shares_other == 0
+                               else d.shares_other)
+                out.write("\t %s %+7.f shares %s\n" %
+                          (direction, spin_shares, other_commodity))
 
-        share_price = abs((costs-fees)/shares)
-        out.write("\t%s %s %9.2f %s, fees %7.2f, %+7.1f shares (@%3.2f)\n" % (
-                  date, atype, costs, curr, fees, shares, share_price))
-        sum_costs += costs
-        sum_fees += fees
-        sum_shares += shares
-        if sum_shares == 0:
-            last_sell = trans.post_date
-        else:
-            last_sell = None
-        if is_buy:
-            sum_invest += costs
-    assert abs(sum_div_value+sum_div_fees - sum_div) < .0001
-    return (sum_costs, sum_invest, sum_fees, sum_shares, sum_div_value,
-            sum_div_fees, first_in, last_sell)
+    realized_gain = sum.realized_gain
+    realized_gain += sum.dividends
+    realized_gain -= sum.expenses
+    return (realized_gain, sum.shares_value, sum.expenses,
+            sum.dividends, sum.shares, realized_days, period_begin)
+
+
+def get_latest_price(commodity):
+    prices = commodity.prices
+    if len(prices) == 0:
+        return (None, None)
+    return (prices[-1].value, prices[-1].date)
 
 
 def get_latest_share_value(acc, shares):
@@ -133,64 +204,72 @@ def get_latest_share_value(acc, shares):
     return (value, last_price.value, last_price.date)
 
 
-out = sys.stdout
-if len(sys.argv) == 1:
-    sys.stderr.write("Invocation: %s gnucash_filename\n" % sys.argv[0])
-    sys.exit(1)
-data = gnucash.read_file(sys.argv[1])
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('gnucash_file')
+    parser.add_argument('-v', '--verbose', action='count', default=0)
+    args = parser.parse_args()
 
-# Report
-gdiv_value = 0.0
-gdiv_fees = 0.0
-grealized_gain = 0.0
-gunrealized_gain = 0.0
-gfees = 0.0
-for acc in data.accounts.values():
-    if acc.type != "STOCK" and acc.type != "MUTUAL":
-        # out.write("IGNORE %s: %-40s\n" % (acc.type, full_acc_name(acc, 3)))
-        continue
-    name = full_acc_name(acc, 3)
-    out.write("== %s ==\n" % (name,))
+    data = gnucash.read_file(args.gnucash_file)
 
-    costs, invest, fees, shares, div_value, div_fees, first_in, last_sell = \
-        analyze_transactions(acc)
+    global out
+    out = sys.stdout
+    global verbose
+    verbose = args.verbose
 
-    out.write("\t-------------\n")
-    gfees += fees
-    gdiv_value += div_value
-    gdiv_fees += div_fees
-    realized_gain = 0.0
-    if shares == 0:
-        value, share_value, value_date = (0.0, 0.0, last_sell)
-        realized_gain = -costs
-    else:
-        value, share_value, value_date = get_latest_share_value(acc, shares)
-        gunrealized_gain += -costs + value
-        date = value_date.strftime("%d.%m.%Y")
-        out.write("\t%7.2f value in %5.0f shares (@%.2f) [on %s]\n" %
-                  (value, shares, share_value, date))
-    out.write("\t%7.2f realized gain + %.2f dividends (%.2f fees)\n" %
-              (realized_gain, div_value, fees + div_fees))
-    grealized_gain += realized_gain
+    # Report
+    gdividends = 0.0
+    gexpenses = 0.0
+    grealized_gain = 0.0
+    gunrealized_gain = 0.0
+    for acc in data.accounts.values():
+        if acc.type != "STOCK" and acc.type != "MUTUAL":
+            continue
+        name = full_acc_name(acc, 3)
+        if verbose >= 1:
+            out.write("== %s (%s) ==\n" % (name, acc.commodity.mnemonic))
 
-    # Try to compute win in percentage
-    from_date = first_in.strftime("%m/%Y")
-    to_date = value_date.strftime("%m/%Y")
-    delta = value_date - first_in
-    days = delta.days
-    win = -costs + value + div_value
-    win_ratio = win / invest if invest > 0 else 0
-    win_per_day = math.pow(1.0+win_ratio, 1.0/float(days)) \
-        if days != 0 else 1.0
-    win_per_year = math.pow(win_per_day, 365.)
-    out.write("\t%7.2f%% gain p.a. (from %s to %s)\n" %
-              ((win_per_year-1.0)*100., from_date, to_date))
-    out.write("\n")
-complete_gain = grealized_gain+gunrealized_gain+gdiv_value
-out.write("-----------\n")
-out.write("%9.2f fees\n" % (gdiv_fees+gfees,))
-out.write("%9.2f EUR gain realized\n" % (grealized_gain,))
-out.write("%9.2f EUR gain unrealized\n" % (gunrealized_gain,))
-out.write("%9.2f EUR dividends\n" % (gdiv_value,))
-out.write("----\n")
-out.write("%9.2f EUR complete gain\n" % (complete_gain,))
+        realized_gain, shares_value, expenses, dividends, shares, \
+            realized_days, period_begin = analyze_account(acc)
+
+        if verbose >= 2:
+            out.write("\t-------------\n")
+        gexpenses += expenses
+        gdividends += dividends
+
+        if shares == 0:
+            share_price = 0
+            price_date = None
+        else:
+            share_price, price_date = get_latest_price(acc.commodity)
+        current_shares_value = shares * share_price
+        unrealized_gain = current_shares_value - shares_value
+
+        if verbose >= 1:
+            out.write("\t%7.2f realized gain incl. %.2f dividends, "
+                      "%.2f fees/tax\n" %
+                      (realized_gain, dividends, expenses))
+            if abs(unrealized_gain) > .001:
+                price_suffix = ""
+                if share_price != 0:
+                    date_string = price_date.strftime("%d.%m.%Y")
+                    price_suffix = (" (@%.2f on %s)" %
+                                    (share_price, date_string))
+                out.write("\t%7.2f unrealized: %.0f shares = %5.2f%s\n" %
+                          (unrealized_gain, shares, current_shares_value,
+                           price_suffix))
+            out.write("\n")
+
+        grealized_gain += realized_gain
+        gunrealized_gain += unrealized_gain
+    complete_gain = grealized_gain+gunrealized_gain
+    out.write("-----------\n")
+    out.write("%9.2f Fees and Taxes\n" % (gexpenses,))
+    out.write("%9.2f Dividends\n" % (gdividends,))
+    out.write("%9.2f gain realized\n" % (grealized_gain,))
+    out.write("%9.2f gain unrealized\n" % (gunrealized_gain,))
+    out.write("----\n")
+    out.write("%9.2f EUR complete gain\n" % (complete_gain,))
+
+if __name__ == "__main__":
+    main()
