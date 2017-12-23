@@ -1,1 +1,1 @@
-../gnucash2ledger.py Inputs/simple.gnucash
+../gnucash2ledger.py Inputs/gen/simple.gnucash
