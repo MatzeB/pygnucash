@@ -4,7 +4,6 @@
 # involving 1 account to another account.
 import codecs
 import gnucash
-import math
 import sys
 from gnucashutil import full_acc_name
 from sys import stderr, exit
