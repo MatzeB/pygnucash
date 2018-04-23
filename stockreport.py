@@ -6,7 +6,6 @@
 # to ease comparisons between stocks that you hold for different durations of
 # time.
 import gnucash
-import math
 import sys
 import argparse
 from gnucashutil import full_acc_name
@@ -48,7 +47,7 @@ def analyze_transaction(acc, transaction):
         acctype = ssplit.account.type
         if acctype == "EXPENSE":
             d.expenses += ssplit.value
-        elif acctype in ("BANK", "ASSET", "EQUITY"):
+        elif acctype in ("BANK", "ASSET", "EQUITY", "CREDIT"):
             d.activa_changes += ssplit.value
         elif acctype == "INCOME":
             d.income += -ssplit.value
@@ -63,10 +62,11 @@ def analyze_transaction(acc, transaction):
                 if other_commodity is None:
                     other_commodity = other_account.commodity
         else:
+            date = transaction.post_date.strftime("%d.%m.%Y")
             out.write("Unexpected account type: %s (acc %s)\n" %
                       (acctype, acc))
             out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
-                      (date, trans.description, ssplit.value,
+                      (date, transaction.description, ssplit.value,
                        ssplit.quantity))
             assert False
     d.verify()
@@ -85,8 +85,6 @@ def categorize_transaction(analysis_details):
         elif d.expenses > d.income:
             assert d.expenses > 0
             return "FEE "  # account fee or borrowing fee
-        else:
-            tx_type = None
     elif d.shares_moved == 0 and d.shares_other == 0:
         if d.shares > 0 and (d.activa_changes < 0 or d.income > 0):
             return "BUY "
@@ -270,6 +268,7 @@ def main():
     out.write("%9.2f gain unrealized\n" % (gunrealized_gain,))
     out.write("----\n")
     out.write("%9.2f EUR complete gain\n" % (complete_gain,))
+
 
 if __name__ == "__main__":
     main()
