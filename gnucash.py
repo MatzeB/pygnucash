@@ -121,7 +121,11 @@ def read_data(connection):
         acc.type = account_type
 
     def parse_time(time):
-        return datetime.strptime(time, "%Y%m%d%H%M%S")
+        try:
+            # try gnucash 3 format
+            return datetime.strptime(time, '%Y-%m-%d %H:%M:%S')
+        except:
+            return datetime.strptime(time, "%Y%m%d%H%M%S")
 
     for row in c.execute('SELECT guid, currency_guid, num, post_date, '
                          'description FROM transactions'):

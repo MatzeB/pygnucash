@@ -1,0 +1,21 @@
+commodity USD
+	note US Dollar
+
+account Bank
+	check commodity == "USD"
+
+account Income
+	check commodity == "USD"
+
+account Expenses
+	check commodity == "USD"
+
+
+2011/01/01 * Salary
+	Bank                                          111.00 USD
+	Income                                       -111.00 USD
+
+2012/02/02 * Rent
+	Bank                                          -66.00 USD
+	Expenses                                       66.00 USD
+
