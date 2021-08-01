@@ -48,7 +48,7 @@ def analyze_transaction(acc, transaction):
         acctype = ssplit.account.type
         if acctype == "EXPENSE":
             d.expenses += ssplit.value
-        elif acctype in ("BANK", "ASSET", "EQUITY"):
+        elif acctype in ("BANK", "ASSET", "EQUITY", "CREDIT"):
             d.activa_changes += ssplit.value
         elif acctype == "INCOME":
             d.income += -ssplit.value
@@ -63,11 +63,13 @@ def analyze_transaction(acc, transaction):
                 if other_commodity is None:
                     other_commodity = other_account.commodity
         else:
-            out.write("Unexpected account type: %s (acc %s)\n" %
-                      (acctype, acc))
-            out.write("\t%s %-30s   value %.2f quantity %.2f\n" %
-                      (date, trans.description, ssplit.value,
-                       ssplit.quantity))
+            date = transaction.post_date
+            descr = transaction.description
+            value = ssplit.value
+            quant = ssplit.quantity
+            out.write(f"Unexpected account type: {acctype} (acc {acc})\n")
+            out.write(f"\t{date} {descr:<30}   "
+                      f"value {value:.2f} quantity {quant:.2f}\n")
             assert False
     d.verify()
     return d, other_commodity
@@ -96,6 +98,8 @@ def categorize_transaction(analysis_details):
             return "SPIN"  # spinoff (incoming)
         elif d.shares_value == 0:
             return ("SPLT" if d.shares > 0 else "MERG")
+        elif d.shares < 0 and d.expenses > 0:
+            return "SELL"
     elif d.shares == 0 and d.shares_other > 0:
         return "SPIN"  # spinoff
     elif d.shares_moved != 0 and d.shares_moved == -d.shares:
@@ -131,6 +135,7 @@ def analyze_account(acc):
         tx_type = categorize_transaction(d)
         if tx_type is None:
             out.write("Error: Could not categorize transaction\n")
+            out.write(f"{date} account {acc}\n")
             out.write("Activa Changes %s Income %s Expenses %s "
                       "Shares %s (val %s) Shares Moved %s (val %s) "
                       "Shares Other %s (val %s)\n" %
