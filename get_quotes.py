@@ -1,26 +1,57 @@
 #!/usr/bin/env python3
 #
-# Download quote from yahoo finance (for all STOCK commodities with
-# quote_source set to yahoo).
+# Download quotes from polygon.io. Expects an api-key in a `polygon_key.txt`
+# file in the current directory.
 import datetime
 import gnucash
+import json
 import requests
 import sys
+import time
 
 
-def get_yahoo_data(symbols):
-    # Adapted from https://stackoverflow.com/a/47166822/1005674
-    url = "https://query1.finance.yahoo.com/v7/finance/quote"
-    fields = ['symbol', 'regularMarketPrice', 'regularMarketTime']
-    payload = {
-        'land': 'en-US',
-        'region': 'US',
-        'corsDomain': 'finance.yahoo.com',
-        'fields': ','.join(fields),
-        'symbols': ','.join(symbols),
+class Data:
+    pass
+
+
+def get_data_polygon(symbols):
+    with open("polygon_key.txt", "r") as fp:
+        auth_key = fp.read().strip()
+    assert len(auth_key) == 32
+
+    session = requests.Session()
+    session.headers = {
+        'Authorization': f"Bearer {auth_key}"
     }
-    r = requests.get(url, params=payload)
-    return r.json()
+    result = dict()
+    base_url = "https://api.polygon.io"
+    for symbol in symbols:
+        url = f"{base_url}/v2/aggs/ticker/{symbol}/prev"
+        response = session.get(url)
+        if not response.ok and "exceeded the maximum requests per minute" in response.text:
+            print("Throttling for request limits")
+            time.sleep(60)
+            response = session.get(url)
+        if not response.ok:
+            print(f"Request failed for {symbol}")
+            print(response.text)
+            sys.exit(1)
+        data = json.loads(response.text)
+        assert data["status"] == "OK"
+        assert data["ticker"] == symbol
+        if "results" not in data:
+            print(f"No results for {symbol}")
+            sys.exit(1)
+        prices = data["results"][0]
+        r = Data()
+        r.close = prices["c"]
+        r.high = prices["h"]
+        r.low = prices["l"]
+        r.open = prices["o"]
+        r.time = datetime.datetime.fromtimestamp(prices["t"] / 1000)
+        result[symbol] = r
+
+    return result
 
 
 def get_price_on_day(prices, day):
@@ -28,6 +59,14 @@ def get_price_on_day(prices, day):
         if p.date.date() == day:
             return p
     return None
+
+
+def get_latest_date(prices):
+    latest = None
+    for p in prices:
+        if latest is None or p.date.date() > latest:
+            latest = p.date.date()
+    return latest
 
 
 def get_currency(gnucashdata, mnemonic):
@@ -50,11 +89,12 @@ def main():
     comms = dict()
     symbols = []
     for comm in commodities:
-        if not comm.quote_flag or comm.quote_source != 'yahoo':
+        if not comm.quote_flag:
             continue
-        symbols.append(comm.mnemonic)
-        assert comm.mnemonic not in comms   # hopefully have no duplicates
-        comms[comm.mnemonic] = comm
+        if comm.quote_source == 'yahoo' or comm.quote_source == 'yahoo_json':
+            symbols.append(comm.mnemonic)
+            assert comm.mnemonic not in comms   # hopefully have no duplicates
+            comms[comm.mnemonic] = comm
 
     currency_usd = get_currency(gcdata, 'USD')   # hardcoded for now
 
@@ -62,30 +102,27 @@ def main():
         print("No commodities with quote_source == 'yahoo' found")
         sys.exit(0)
 
-    print("Getting quotes for: %s" % ' '.join(symbols))
-    yahoodata = get_yahoo_data(symbols)
 
-    for sym in symbols:
-        alldata = yahoodata['quoteResponse']['result']
-        data = None
-        for d in alldata:
-            if d['symbol'] == sym:
-                data = d
-                break
-        if data is None:
-            print("Error: %s: No data" % sym)
+    for symbol in symbols:
+        commodity = comms[symbol]
+        latest = get_latest_date(commodity.prices)
+        delta = datetime.datetime.now().date() - latest
+        if delta.days <= 3:
+            print(f"Data for {symbol} is new")
             continue
-        commodity = comms[sym]
-        time = datetime.datetime.fromtimestamp(data['regularMarketTime'])
-        day = time.date()
+
+        print(f"Getting quotes for: {symbol}")
+        sym_data = get_data_polygon([symbol])[symbol]
+        price = sym_data.close
+        time = sym_data.time
+        day = sym_data.time.date()
 
         prev_data = get_price_on_day(commodity.prices, day)
         if prev_data is not None:
-            print("%s: Skipping (already have data for %s)" % (sym, day))
+            print("%s: Skipping (already have data for %s)" % (symbol, day))
         else:
-            print("%s: %s on %s" % (sym, data['regularMarketPrice'], day))
-            # TODO: Actually insert data
-            value_num = int(data['regularMarketPrice'] * 10000)
+            print("%s: %s on %s" % (symbol, price, day))
+            value_num = int(price * 10000)
             value_denom = 10000
             source = 'Finance::Quote'  # Only some known strings accepted here
             gnucash.add_price(gcconn, commodity.guid, currency_usd.guid, time,

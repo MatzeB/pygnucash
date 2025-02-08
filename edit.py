@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #
-# Tool to change gnucash files. Currently this can change all transactions
+# Tool to change gnucash files. Currently this can move all transactions
 # involving 1 account to another account.
 import codecs
 import gnucash
@@ -14,7 +14,7 @@ if len(sys.argv) < 3:
     stderr.write("  Commands:\n")
     stderr.write("     accountlist         List account names+numbers\n")
     stderr.write("     switchacc old new   "
-                 "Change all transactions from old to new account guid")
+                 "Move all transactions from <old> to <new> account (specified as GUID)")
     exit(1)
 
 conn = gnucash.open_file(sys.argv[1])
