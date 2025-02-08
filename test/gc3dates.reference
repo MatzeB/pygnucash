@@ -1,13 +1,13 @@
 commodity USD
 	note US Dollar
 
-account Bank
-	check commodity == "USD"
-
 account Income
 	check commodity == "USD"
 
 account Expenses
+	check commodity == "USD"
+
+account Bank
 	check commodity == "USD"
 
 

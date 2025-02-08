@@ -1,37 +1,40 @@
 #!/usr/bin/env python3
-#
-# Analysis tool for stock performance. Similar to the built-in advanced
-# portfolio view, but does a better job at figuring out fees, taxes and
-# dividens. Also computes lifetime wins/losses and yearly increase percentages
-# to ease comparisons between stocks that you hold for different durations of
-# time.
-import gnucash
-import math
-import sys
+"""
+Analysis tool for stock performance. Similar to the built-in advanced
+portfolio view, but does a better job at figuring out fees, taxes and
+dividends. Also computes lifetime wins/losses and yearly increase percentages
+to ease comparisons between stocks that you hold for different durations of
+time.
+"""
+
+from __future__ import annotations
+
 import argparse
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from typing import TextIO
+
+import gnucash
+from gnucash import Account, Commodity, Transaction
 from gnucashutil import full_acc_name
 
 
-class Details(object):
-    _keys = (
-        "activa_changes",
-        "income",
-        "expenses",
-        "dividends",
-        "shares",
-        "shares_value",
-        "shares_moved",
-        "shares_moved_value",
-        "shares_other",
-        "shares_other_value",
-        "realized_gain",
-    )
+@dataclass(slots=True)
+class Details:
+    activa_changes: float = 0
+    income: float = 0
+    expenses: float = 0
+    dividends: float = 0
+    shares: float = 0
+    shares_value: float = 0
+    shares_moved: float = 0
+    shares_moved_value: float = 0
+    shares_other: float = 0
+    shares_other_value: float = 0
+    realized_gain: float = 0
 
-    def __init__(self):
-        for key in self._keys:
-            setattr(self, key, 0)
-
-    def verify(self):
+    def verify(self) -> None:
         assert (
             abs(
                 self.income
@@ -46,18 +49,22 @@ class Details(object):
             < 0.001
         )
 
-    def __add__(self, other):
+    def __add__(self, other: object) -> Details:
+        assert isinstance(other, Details)
         res = Details()
-        for key in self._keys:
+        keys = Details.__dataclass_fields__.keys()
+        for key in keys:
             setattr(res, key, getattr(self, key) + getattr(other, key))
         res.verify()
         return res
 
 
-def analyze_transaction(acc, transaction):
+def analyze_transaction(
+    out: TextIO, acc: Account, transaction: Transaction
+) -> tuple[Details, Commodity | None]:
     # Analyze the transaction splits.
     d = Details()
-    other_commodity = None
+    other_commodity: Commodity | None = None
     for ssplit in transaction.splits:
         if ssplit.account == acc:
             d.shares += ssplit.quantity
@@ -90,12 +97,12 @@ def analyze_transaction(acc, transaction):
             out.write(
                 f"\t{date} {descr:<30}   value {value:.2f} quantity {quant:.2f}\n"
             )
-            assert False
+            sys.exit(1)
     d.verify()
     return d, other_commodity
 
 
-def categorize_transaction(analysis_details):
+def categorize_transaction(analysis_details: Details) -> str | None:
     d = analysis_details
     if d.shares == 0 and d.shares_moved == 0 and d.shares_other == 0:
         # No change in share numbers at all, must be dividends or fees.
@@ -104,21 +111,19 @@ def categorize_transaction(analysis_details):
             d.dividends += d.income
             d.income = 0
             return "DIV "  # dividends
-        elif d.expenses > d.income:
+        if d.expenses > d.income:
             assert d.expenses > 0
             return "FEE "  # account fee or borrowing fee
-        else:
-            tx_type = None
     elif d.shares_moved == 0 and d.shares_other == 0:
         if d.shares > 0 and (d.activa_changes < 0 or d.income > 0):
             return "BUY "
-        elif d.shares < 0 and d.activa_changes > 0:
+        if d.shares < 0 and d.activa_changes > 0:
             return "SELL"
-        elif d.shares > 0 and d.shares_other_value != 0:
+        if d.shares > 0 and d.shares_other_value != 0:
             return "SPIN"  # spinoff (incoming)
-        elif d.shares_value == 0:
+        if d.shares_value == 0:
             return "SPLT" if d.shares > 0 else "MERG"
-        elif d.shares < 0 and d.expenses > 0:
+        if d.shares < 0 and d.expenses > 0:
             return "SELL"
     elif d.shares == 0 and d.shares_other > 0:
         return "SPIN"  # spinoff
@@ -126,15 +131,24 @@ def categorize_transaction(analysis_details):
         return "MOVE"  # securities moved to another account
     elif (d.shares < 0 and d.shares_other > 0) or (d.shares > 0 and d.shares_other < 0):
         return "CONV"  # "convert" (secutiry is renamed etc.)
-    else:
-        pass
     return None
 
 
-def analyze_account(acc):
+@dataclass(slots=True, frozen=True)
+class AccountAggregate:
+    realized_gain: float
+    shares_value: float
+    expenses: float
+    dividends: float
+    shares: float
+    realized_days: float
+    period_begin: datetime | None
+
+
+def analyze_account(out: TextIO, verbose: int, acc: Account) -> AccountAggregate:
     sum = Details()
-    realized_days = 0
-    period_begin = None
+    realized_days = 0.0
+    period_begin: datetime | None = None
 
     splits = sorted(acc.splits, key=lambda x: x.transaction.post_date)
     processed_transactions = set()
@@ -150,26 +164,18 @@ def analyze_account(acc):
         curr = trans.currency
 
         # Analyze the transaction splits.
-        d, other_commodity = analyze_transaction(acc, trans)
+        d, other_commodity = analyze_transaction(out, acc, trans)
         tx_type = categorize_transaction(d)
         if tx_type is None:
             out.write("Error: Could not categorize transaction\n")
             out.write(f"{date} account {acc}\n")
             out.write(
-                "Activa Changes %s Income %s Expenses %s "
-                "Shares %s (val %s) Shares Moved %s (val %s) "
-                "Shares Other %s (val %s)\n"
-                % (
-                    d.activa_changes,
-                    d.income,
-                    d.expenses,
-                    d.shares,
-                    d.shares_value,
-                    d.shares_moved,
-                    d.shares_moved_value,
-                    d.shares_other,
-                    d.shares_other_value,
-                )
+                f"Activa Changes {d.activa_changes} "
+                f"Income {d.income} "
+                f"Expenses {d.expenses} "
+                f"Shares {d.shares} (val {d.shares_value}) "
+                f"Shares Moved {d.shares_moved} (val {d.shares_moved_value}) "
+                f"Shares Other {d.shares_other} (val {d.shares_other_value})\n"
             )
             continue
 
@@ -184,6 +190,7 @@ def analyze_account(acc):
             # End a period when moving from non-0 to 0 shares.
             if d.shares != 0:
                 period_end = trans.post_date
+                assert period_begin is not None
                 period_days = (period_end - period_begin).days
                 realized_days += period_days
                 period_begin = None
@@ -192,61 +199,51 @@ def analyze_account(acc):
 
         # Print transaction.
         if verbose >= 2:
-            out.write("\t%s %s " % (date, tx_type))
+            out.write(f"\t{date} {tx_type} ")
             if tx_type == "DIV ":
-                out.write("%9.2f %s, fees %7.2f\n" % (d.dividends, curr, d.expenses))
+                out.write(f"{d.dividends:9.2f} {curr}, fees {d.expenses:7.2f}\n")
             elif tx_type == "FEE ":
-                out.write("%0.2f %s\n" % (d.activa_changes, curr))
+                out.write(f"{d.activa_changes:0.2f} {curr}\n")
             else:
                 out.write(
-                    "%9.2f %s, fees %7.2f, %+5.1f shares"
-                    % (-d.shares_value, curr, d.expenses, d.shares)
+                    f"{-d.shares_value:9.2f} {curr}"
+                    f", fees {d.expenses:7.2f}"
+                    f", {d.shares:+5.1f} shares"
                 )
                 if d.shares != 0:
                     share_price = d.shares_value / d.shares
                     assert share_price >= 0
-                    out.write(" (@%3.2f)" % share_price)
+                    out.write(f" (@{share_price:3.2f})")
                 out.write("\n")
             if tx_type in ("SPIN", "CONV") and other_commodity is not None:
                 direction = "<-" if d.shares_other == 0 else "->"
                 spin_shares = d.shares if d.shares_other == 0 else d.shares_other
                 out.write(
-                    "\t %s %+7.f shares %s\n"
-                    % (direction, spin_shares, other_commodity)
+                    f"\t {direction} {spin_shares:+7.f} shares {other_commodity}\n"
                 )
 
     realized_gain = sum.realized_gain
     realized_gain += sum.dividends
     realized_gain -= sum.expenses
-    return (
-        realized_gain,
-        sum.shares_value,
-        sum.expenses,
-        sum.dividends,
-        sum.shares,
-        realized_days,
-        period_begin,
+    return AccountAggregate(
+        realized_gain=realized_gain,
+        shares_value=sum.shares_value,
+        expenses=sum.expenses,
+        dividends=sum.dividends,
+        shares=sum.shares,
+        realized_days=realized_days,
+        period_begin=period_begin,
     )
 
 
-def get_latest_price(commodity):
+def get_latest_price(commodity: Commodity) -> tuple[float | None, datetime | None]:
     prices = commodity.prices
     if len(prices) == 0:
         return (None, None)
     return (prices[-1].value, prices[-1].date)
 
 
-def get_latest_share_value(acc, shares):
-    commodity = acc.commodity
-    prices = commodity.prices
-    if len(prices) == 0:
-        return float("NaN")
-    last_price = prices[-1]
-    value = shares * last_price.value
-    return (value, last_price.value, last_price.date)
-
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("gnucash_file")
     parser.add_argument("-v", "--verbose", action="count", default=0)
@@ -254,9 +251,7 @@ def main():
 
     data = gnucash.read_file(args.gnucash_file)
 
-    global out
     out = sys.stdout
-    global verbose
     verbose = args.verbose
 
     # Report
@@ -269,44 +264,46 @@ def main():
             continue
         name = full_acc_name(acc, 3)
         if verbose >= 1:
-            out.write("== %s (%s) ==\n" % (name, acc.commodity.mnemonic))
+            out.write(f"== {name} ({acc.commodity.mnemonic}) ==\n")
 
-        (
-            realized_gain,
-            shares_value,
-            expenses,
-            dividends,
-            shares,
-            realized_days,
-            period_begin,
-        ) = analyze_account(acc)
+        aggregate = analyze_account(out, verbose, acc)
+        realized_gain = aggregate.realized_gain
+        shares_value = aggregate.shares_value
+        expenses = aggregate.expenses
+        dividends = aggregate.dividends
+        shares = aggregate.shares
 
         if verbose >= 2:
             out.write("\t-------------\n")
         gexpenses += expenses
         gdividends += dividends
 
-        if shares == 0:
-            share_price = 0
-            price_date = None
+        if shares == 0.0:
+            share_price: float = 0.0
+            price_date: datetime | None = None
         else:
-            share_price, price_date = get_latest_price(acc.commodity)
+            share_price_n, price_date = get_latest_price(acc.commodity)
+            assert share_price_n is not None
+            assert price_date is not None
+            share_price = share_price_n
         current_shares_value = shares * share_price
         unrealized_gain = current_shares_value - shares_value
 
         if verbose >= 1:
             out.write(
-                "\t%7.2f realized gain incl. %.2f dividends, "
-                "%.2f fees/tax\n" % (realized_gain, dividends, expenses)
+                f"\t{realized_gain:7.2f} realized gain incl. "
+                f"{dividends:.2f} dividends, "
+                f"{expenses:.2f} fees/tax\n"
             )
             if abs(unrealized_gain) > 0.001:
                 price_suffix = ""
                 if share_price != 0:
+                    assert price_date is not None
                     date_string = price_date.strftime("%d.%m.%Y")
-                    price_suffix = " (@%.2f on %s)" % (share_price, date_string)
+                    price_suffix = f" (@{share_price:.2f} on {date_string})"
                 out.write(
-                    "\t%7.2f unrealized: %.0f shares = %5.2f%s\n"
-                    % (unrealized_gain, shares, current_shares_value, price_suffix)
+                    f"\t{unrealized_gain:7.2f} unrealized: {shares:.0f} shares "
+                    f"= {current_shares_value:5.2f}{price_suffix}\n"
                 )
             out.write("\n")
 
@@ -314,12 +311,12 @@ def main():
         gunrealized_gain += unrealized_gain
     complete_gain = grealized_gain + gunrealized_gain
     out.write("-----------\n")
-    out.write("%9.2f Fees and Taxes\n" % (gexpenses,))
-    out.write("%9.2f Dividends\n" % (gdividends,))
-    out.write("%9.2f gain realized\n" % (grealized_gain,))
-    out.write("%9.2f gain unrealized\n" % (gunrealized_gain,))
+    out.write(f"{gexpenses:9.2f} Fees and Taxes\n")
+    out.write(f"{gdividends:9.2f} Dividends\n")
+    out.write(f"{grealized_gain:9.2f} gain realized\n")
+    out.write(f"{gunrealized_gain:9.2f} gain unrealized\n")
     out.write("----\n")
-    out.write("%9.2f EUR complete gain\n" % (complete_gain,))
+    out.write(f"{complete_gain:9.2f} EUR complete gain\n")
 
 
 if __name__ == "__main__":

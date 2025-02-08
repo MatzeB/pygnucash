@@ -1,7 +1,7 @@
 commodity USD
 	note US Dollar
 
-account Bank
+account Expenses:Taxes
 	check commodity == "USD"
 
 account Income
@@ -10,7 +10,7 @@ account Income
 account Expenses
 	check commodity == "USD"
 
-account Expenses:Taxes
+account Bank
 	check commodity == "USD"
 
 

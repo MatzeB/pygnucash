@@ -1,4 +1,9 @@
-def full_acc_name(acc, maxdepth=1000):
+from __future__ import annotations
+
+from gnucash import Account
+
+
+def full_acc_name(acc: Account, maxdepth: int = 1000) -> str:
     if acc.parent is None or maxdepth == 0:
         return ""
     result = full_acc_name(acc.parent, maxdepth - 1)
