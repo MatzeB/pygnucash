@@ -1,1 +1,3 @@
 *.pyc
+/polygon_key.txt
+__pycache__

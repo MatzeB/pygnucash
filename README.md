@@ -10,7 +10,7 @@ version 2.6 and higher. It features two proof of concepts scripts:
 
 ## 2. Requirements
 
-* python 3.x (tested on 3.6, may or may not work on other versions on 2.x)
+* python >=3.10
 
 ## Author/Contact
 

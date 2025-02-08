@@ -1,0 +1,74 @@
+[tool.poetry]
+name = "pygnucash"
+version = "0.1.0"
+description = "Python library to read GnuCash SQL files"
+authors = ["Matthias Braun <matze@braunis.de>"]
+license = "BSD-1-Clause"
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+
+[tool.poetry.group.dev.dependencies]
+ruff = "^0.9.5"
+mypy = "^1.15.0"
+types-requests = "^2.32.0.20241016"
+
+[tool.poetry.group.examples.dependencies]
+requests = "^2.32.3"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.ruff]
+line-length = 88
+
+[tool.ruff.lint]
+preview = true
+select = [
+    "ANN",
+    "ARG",
+    "ARG",
+    "B",
+    "C4",
+    "DTZ",
+    "E",
+    "EXE",
+    "F",
+    "FA",
+    "FLY",
+    "FURB",
+    "I",
+    "N",
+    "PIE",
+    "PLW1514",
+    "PYI",
+    "RET",
+    "RUF",
+    "S",
+    "SIM",
+    "SLOT",
+    "UP",
+    "W",
+    "YTT",
+]
+ignore = [
+    "ANN401",  # any-type
+    "ARG002",  # unused-method-argument
+    "FURB101", # read-whole-file
+    "FURB103", # write-whole-file
+    "FURB113", # repeated-append
+    "RET504",  # unnecessary-assign
+    "S101",    # assert
+    "S110",    # try-except-pass
+    "S404",    # suspicious-subprocess-import
+    "S603",    # subprocess-without-shell-equals-true
+    "SIM105",  # suppressible-exception
+    "SIM108",  # if-else-block-instead-of-if-exp
+    "SIM113",  # enumerate-for-loop
+]
+
+[tool.mypy]
+strict = true
