@@ -1,0 +1,35 @@
+== Brokerage Account:Stock:AAPL (AAPL) ==
+	01.11.2007 SELL   2678.00 USD, fees   11.00, -100.0 shares (@26.78)
+	02.02.2009 BUY   -1172.00 USD, fees   -4.00, +100.0 shares (@11.72)
+	31.12.2010 BUY   -5667.84 USD, fees    0.00, +123.0 shares (@46.08)
+	05.05.2011 MOVE  -2175.80 USD, fees    0.00, +44.0 shares (@49.45)
+	25.07.2011 SELL   5009.84 USD, fees    9.00, -88.0 shares (@56.93)
+	04.05.2012 SELL   6379.25 USD, fees    0.00, -79.0 shares (@80.75)
+	-------------
+	5035.45 realized gain incl. 0.00 dividends, 16.00 fees/tax
+
+== Brokerage Account:Stock:BRK.A (BRK.A) ==
+	-------------
+	   0.00 realized gain incl. 0.00 dividends, 0.00 fees/tax
+
+== Brokerage Account:Stock:Microsoft (MSFT) ==
+	10.03.2008 BUY   -2805.00 USD, fees   10.00, +100.0 shares (@28.05)
+	12.06.2008 DIV      11.00 USD, fees    2.00
+	16.11.2009 SELL   2636.00 USD, fees    6.00, -100.0 shares (@26.36)
+	10.12.2017 DIV      13.00 USD, fees    0.00
+	-------------
+	-163.00 realized gain incl. 24.00 dividends, 18.00 fees/tax
+
+== Investments:Brokerage Account 2:Apple (AAPL) ==
+	28.02.2011 BUY   -2220.24 USD, fees    0.00, +44.0 shares (@50.46)
+	05.05.2011 MOVE   2175.80 USD, fees    0.00, -44.0 shares (@49.45)
+	-------------
+	 -44.44 realized gain incl. 0.00 dividends, 0.00 fees/tax
+
+-----------
+    34.00 Fees and Taxes
+    24.00 Dividends
+  4828.01 gain realized
+     0.00 gain unrealized
+----
+  4828.01 EUR complete gain

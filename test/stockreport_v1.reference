@@ -1,0 +1,19 @@
+== Brokerage Account:Stock:AAPL (AAPL) ==
+	5035.45 realized gain incl. 0.00 dividends, 16.00 fees/tax
+
+== Brokerage Account:Stock:BRK.A (BRK.A) ==
+	   0.00 realized gain incl. 0.00 dividends, 0.00 fees/tax
+
+== Brokerage Account:Stock:Microsoft (MSFT) ==
+	-163.00 realized gain incl. 24.00 dividends, 18.00 fees/tax
+
+== Investments:Brokerage Account 2:Apple (AAPL) ==
+	 -44.44 realized gain incl. 0.00 dividends, 0.00 fees/tax
+
+-----------
+    34.00 Fees and Taxes
+    24.00 Dividends
+  4828.01 gain realized
+     0.00 gain unrealized
+----
+  4828.01 EUR complete gain
