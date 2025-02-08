@@ -8,11 +8,11 @@ import gnucash
 def format_commodity(commodity):
     mnemonic = commodity.mnemonic
     try:
-        if mnemonic.encode('ascii').isalpha():
+        if mnemonic.encode("ascii").isalpha():
             return mnemonic
     except Exception as e:
         pass
-    return "\"%s\"" % mnemonic   # TODO: escape " char in mnemonic
+    return '"%s"' % mnemonic  # TODO: escape " char in mnemonic
 
 
 def full_acc_name(acc):
@@ -49,12 +49,12 @@ for acc in accounts:
         continue
     if str(acc.commodity) == "template":
         continue
-    out.write("account %s\n" % (full_acc_name(acc), ))
+    out.write("account %s\n" % (full_acc_name(acc),))
     if acc.description != "":
         out.write("\tnote %s\n" % (no_nl(acc.description),))
     formated_commodity = format_commodity(acc.commodity)
-    formated_commodity = formated_commodity.replace("\"", "\\\"")
-    out.write("\tcheck commodity == \"%s\"\n" % formated_commodity)
+    formated_commodity = formated_commodity.replace('"', '\\"')
+    out.write('\tcheck commodity == "%s"\n' % formated_commodity)
     out.write("\n")
 
 # Prices
@@ -64,13 +64,11 @@ for price in prices:
     date = price.date.strftime("%Y/%m/%d %H:%M:%S")
     price_commodity = format_commodity(price.commodity)
     price_currency = format_commodity(price.currency)
-    out.write("P %s %s %s %s\n" %
-              (date, price_commodity, price.value, price_currency))
+    out.write("P %s %s %s %s\n" % (date, price_commodity, price.value, price_currency))
 out.write("\n")
 
 transactions = data.transactions.values()
-transactions = sorted(transactions,
-                      key=lambda transaction: transaction.post_date)
+transactions = sorted(transactions, key=lambda transaction: transaction.post_date)
 for trans in transactions:
     date = trans.post_date.strftime("%Y/%m/%d")
     code = "(%s) " % no_nl(trans.num.replace(")", "")) if trans.num else ""
@@ -85,13 +83,19 @@ for trans in transactions:
             split_acc_commodity = format_commodity(split.account.commodity)
             quantity = split.quantity
             value = abs(split.value)
-            out.write("%10.*f %s @@ %.2f %s" %
-                      (commodity_precision, quantity, split_acc_commodity,
-                       value, trans_currency))
+            out.write(
+                "%10.*f %s @@ %.2f %s"
+                % (
+                    commodity_precision,
+                    quantity,
+                    split_acc_commodity,
+                    value,
+                    trans_currency,
+                )
+            )
         else:
             commodity_precision = trans.currency.precision
-            out.write("%10.*f %s" %
-                      (commodity_precision, split.value, trans_currency))
+            out.write("%10.*f %s" % (commodity_precision, split.value, trans_currency))
         if split.memo:
             out.write("  ; %s" % no_nl(split.memo))
         out.write("\n")

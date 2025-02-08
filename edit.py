@@ -8,13 +8,15 @@ import sys
 from gnucashutil import full_acc_name
 from sys import stderr, exit
 
-out = codecs.getwriter('UTF-8')(sys.stdout)
+out = codecs.getwriter("UTF-8")(sys.stdout)
 if len(sys.argv) < 3:
     stderr.write("Invocation: %s gnucash_filename COMMAND\n" % sys.argv[0])
     stderr.write("  Commands:\n")
     stderr.write("     accountlist         List account names+numbers\n")
-    stderr.write("     switchacc old new   "
-                 "Move all transactions from <old> to <new> account (specified as GUID)")
+    stderr.write(
+        "     switchacc old new   "
+        "Move all transactions from <old> to <new> account (specified as GUID)"
+    )
     exit(1)
 
 conn = gnucash.open_file(sys.argv[1])
@@ -51,9 +53,15 @@ elif sys.argv[2] == "switchacc":
     for transaction in data.transactions.values():
         for split in transaction.splits:
             if split.account == fromaccount:
-                stderr.write("Found split %s in transaction '%s'\n" %
-                             (split.guid, transaction.description, ))
-                gnucash.change_split_account(conn, split.guid,
-                                             fromaccount.guid, toaccount.guid)
+                stderr.write(
+                    "Found split %s in transaction '%s'\n"
+                    % (
+                        split.guid,
+                        transaction.description,
+                    )
+                )
+                gnucash.change_split_account(
+                    conn, split.guid, fromaccount.guid, toaccount.guid
+                )
 else:
     stderr.write("Unknown command %s\n" % sys.argv[2])

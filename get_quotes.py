@@ -20,15 +20,16 @@ def get_data_polygon(symbols):
     assert len(auth_key) == 32
 
     session = requests.Session()
-    session.headers = {
-        'Authorization': f"Bearer {auth_key}"
-    }
+    session.headers = {"Authorization": f"Bearer {auth_key}"}
     result = dict()
     base_url = "https://api.polygon.io"
     for symbol in symbols:
         url = f"{base_url}/v2/aggs/ticker/{symbol}/prev"
         response = session.get(url)
-        if not response.ok and "exceeded the maximum requests per minute" in response.text:
+        if (
+            not response.ok
+            and "exceeded the maximum requests per minute" in response.text
+        ):
             print("Throttling for request limits")
             time.sleep(60)
             response = session.get(url)
@@ -71,7 +72,7 @@ def get_latest_date(prices):
 
 def get_currency(gnucashdata, mnemonic):
     for comm in gnucashdata.commodities.values():
-        if comm.namespace == 'CURRENCY' and comm.mnemonic == mnemonic:
+        if comm.namespace == "CURRENCY" and comm.mnemonic == mnemonic:
             return comm
     return None
 
@@ -91,17 +92,16 @@ def main():
     for comm in commodities:
         if not comm.quote_flag:
             continue
-        if comm.quote_source == 'yahoo' or comm.quote_source == 'yahoo_json':
+        if comm.quote_source == "yahoo" or comm.quote_source == "yahoo_json":
             symbols.append(comm.mnemonic)
-            assert comm.mnemonic not in comms   # hopefully have no duplicates
+            assert comm.mnemonic not in comms  # hopefully have no duplicates
             comms[comm.mnemonic] = comm
 
-    currency_usd = get_currency(gcdata, 'USD')   # hardcoded for now
+    currency_usd = get_currency(gcdata, "USD")  # hardcoded for now
 
     if len(symbols) == 0:
         print("No commodities with quote_source == 'yahoo' found")
         sys.exit(0)
-
 
     for symbol in symbols:
         commodity = comms[symbol]
@@ -124,11 +124,18 @@ def main():
             print("%s: %s on %s" % (symbol, price, day))
             value_num = int(price * 10000)
             value_denom = 10000
-            source = 'Finance::Quote'  # Only some known strings accepted here
-            gnucash.add_price(gcconn, commodity.guid, currency_usd.guid, time,
-                              source=source, type='last',
-                              value_num=value_num, value_denom=value_denom)
+            source = "Finance::Quote"  # Only some known strings accepted here
+            gnucash.add_price(
+                gcconn,
+                commodity.guid,
+                currency_usd.guid,
+                time,
+                source=source,
+                type="last",
+                value_num=value_num,
+                value_denom=value_denom,
+            )
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
