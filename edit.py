@@ -6,16 +6,14 @@ involving 1 account to another account.
 
 from __future__ import annotations
 
-import codecs
 import sys
-from sys import exit, stderr
+from sys import exit, stderr, stdout
 
 import gnucash
 from gnucashutil import full_acc_name
 
 
 def main() -> None:
-    out = codecs.getwriter("UTF-8")(sys.stdout)
     if len(sys.argv) < 3:
         stderr.write(f"Invocation: {sys.argv[0]} gnucash_filename COMMAND\n")
         stderr.write("  Commands:\n")
@@ -37,7 +35,7 @@ def main() -> None:
                 continue
             if str(account.commodity) == "template":
                 continue
-            out.write(f"{account.guid} - {full_acc_name(account, 3)}\n")
+            stdout.write(f"{account.guid} - {full_acc_name(account, 3)}\n")
     elif command == "switchacc":
         # TODO: Introduce some syntax to only select a subset of transactions
         # (or splits)
